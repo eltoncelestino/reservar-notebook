@@ -1,0 +1,644 @@
+{% extends "base.html" %}
+{% from "partials/badge.html" import status_badge, format_dt_br %}
+
+{% block content %}
+{% set pendentes_count = total_pendentes if total_pendentes is defined else (ativas | selectattr('status', 'equalto', 'Reservado') | list | length) %}
+{% set em_uso_count = total_em_uso if total_em_uso is defined else (ativas | selectattr('status', 'equalto', 'Em uso') | list | length) %}
+{% set devolvidos_count = total_devolvidos if total_devolvidos is defined else (historico | selectattr('status', 'equalto', 'Devolvido') | list | length) %}
+{% set count_ativas = total_ativas if total_ativas is defined else (ativas | length) %}
+{% set count_hist = total_hist if total_hist is defined else (historico | length) %}
+{% set p_ativas = page_ativas if page_ativas is defined else 1 %}
+{% set tp_ativas = pages_ativas if pages_ativas is defined else 1 %}
+{% set p_hist = page_hist if page_hist is defined else 1 %}
+{% set tp_hist = pages_hist if pages_hist is defined else 1 %}
+
+<!-- Cabeçalho da Página -->
+<div class="animate-fade-up flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+      Painel do Administrador
+    </h1>
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+      Gerencie retiradas, devoluções com checklist e consulte o histórico de uso do equipamento
+    </p>
+  </div>
+  <a href="{{ url_for('index') }}"
+     class="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+    <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+    </svg>
+    Nova Reserva
+  </a>
+</div>
+
+<!-- Cards de Resumo (KPIs) -->
+<div class="grid sm:grid-cols-3 gap-4 sm:gap-5 mb-8">
+  <!-- Card 1: Reservas Pendentes -->
+  <div class="animate-fade-up delay-1 bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Aguardando Retirada</p>
+      <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">{{ pendentes_count }}</p>
+      <p class="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">Reservas agendadas</p>
+    </div>
+    <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Card 2: Em Uso Agora -->
+  <div class="animate-fade-up delay-2 bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Em Uso no Momento</p>
+      <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">{{ em_uso_count }}</p>
+      <p class="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1">Aguardando devolução</p>
+    </div>
+    <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Card 3: Devolvidas no Histórico Recente -->
+  <div class="animate-fade-up delay-3 bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Devoluções Recentes</p>
+      <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">{{ devolvidos_count }}</p>
+      <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">Concluídas no histórico</p>
+    </div>
+    <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- Seção: Reservas Pendentes e Em Uso -->
+<section id="secao-ativas" class="animate-fade-up delay-2 mb-10">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+      <span>Controle de Entregas Ativas</span>
+      <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+        {{ count_ativas }}
+      </span>
+    </h2>
+    {% if tp_ativas > 1 %}
+      <span class="text-xs text-slate-500 dark:text-slate-400">
+        Página {{ p_ativas }} de {{ tp_ativas }}
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="space-y-4">
+    {% for r in ativas %}
+      <div class="card-interactive bg-white dark:bg-slate-800 rounded-2xl shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 p-5 sm:p-6 border-l-4 {{ 'border-amber-500' if r.status == 'Em uso' else 'border-emerald-500' }}">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-base font-bold text-slate-900 dark:text-white">{{ r.solicitante }}</span>
+              <span class="text-xs font-medium px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                {{ r.grupamento }}
+              </span>
+              <span class="text-xs font-medium px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                {{ r.finalidade }}
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+              <span class="inline-flex items-center gap-1.5 font-medium">
+                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {{ format_dt_br(r.data_inicio) }} → {{ format_dt_br(r.data_fim) }}
+              </span>
+
+              {% if r.retirada_em %}
+                <span class="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  Retirado em {{ format_dt_br(r.retirada_em) }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          {{ status_badge(r.status) }}
+        </div>
+
+        {% if r.status == 'Reservado' %}
+          <!-- Ações para Reserva Pendente -->
+          <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/70 flex flex-wrap items-center gap-2.5">
+            <form method="post" action="{{ url_for('retirada', id=r.id) }}" data-loading-form>
+              <button type="submit"
+                      data-loading-text="Registrando..."
+                      class="btn-press inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all">
+                <svg data-btn-spinner class="hidden w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span data-btn-label>Confirmar retirada</span>
+              </button>
+            </form>
+
+            <button type="button"
+                    onclick="document.getElementById('edit-box-{{ r.id }}').classList.toggle('hidden')"
+                    class="btn-press inline-flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl ring-1 ring-inset ring-indigo-600/20 transition-all">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/>
+              </svg>
+              Editar
+            </button>
+
+            <button type="button"
+                    data-cancel-url="{{ url_for('cancelar', id=r.id) }}"
+                    data-cancel-nome="{{ r.solicitante }}"
+                    data-cancel-periodo="{{ format_dt_br(r.data_inicio) }} → {{ format_dt_br(r.data_fim) }}"
+                    onclick="openCancelModal(this)"
+                    class="btn-press inline-flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl ring-1 ring-inset ring-rose-600/20 transition-all">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              Cancelar
+            </button>
+          </div>
+        {% else %}
+          <!-- Checklist de Devolução (quando Em Uso) -->
+          <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/70">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Checklist de Devolução</p>
+              <button type="button"
+                      onclick="document.getElementById('edit-box-{{ r.id }}').classList.toggle('hidden')"
+                      class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+                </svg>
+                Editar dados do agendamento
+              </button>
+            </div>
+
+            <form method="post" action="{{ url_for('devolucao', id=r.id) }}" data-loading-form class="space-y-3">
+              <div class="flex flex-wrap gap-4">
+                <label class="inline-flex items-center gap-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 cursor-pointer select-none bg-slate-50 dark:bg-slate-900/60 px-3.5 py-2 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                  <input type="checkbox" name="carregador" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                  <span>🔌 Carregador devolvido</span>
+                </label>
+
+                <label class="inline-flex items-center gap-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 cursor-pointer select-none bg-slate-50 dark:bg-slate-900/60 px-3.5 py-2 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                  <input type="checkbox" name="sem_avarias" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                  <span>✨ Equipamento sem avarias</span>
+                </label>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2.5">
+                <input name="observacao"
+                       type="text"
+                       placeholder="Observação na devolução (opcional)"
+                       class="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900/70 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25">
+
+                <button type="submit"
+                        data-loading-text="Registrando..."
+                        class="btn-press inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-all">
+                  <svg data-btn-spinner class="hidden w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span data-btn-label>Confirmar devolução</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        {% endif %}
+
+        <!-- Formulário Retrátil de Edição do Agendamento -->
+        <div id="edit-box-{{ r.id }}" class="hidden mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/50 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+              Editar Agendamento #{{ r.id }}
+            </h3>
+            <button type="button"
+                    onclick="document.getElementById('edit-box-{{ r.id }}').classList.add('hidden')"
+                    class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              Fechar ✕
+            </button>
+          </div>
+
+          <form method="post" action="{{ url_for('editar', id=r.id) }}" data-loading-form class="space-y-3">
+            <div class="grid sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Solicitante</label>
+                <input type="text"
+                       name="solicitante"
+                       value="{{ r.solicitante }}"
+                       required
+                       class="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Grupamento</label>
+                <select name="grupamento"
+                        required
+                        class="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25">
+                  {% if grupamentos is defined %}
+                    {% for g in grupamentos %}
+                      <option value="{{ g }}" {{ 'selected' if r.grupamento == g else '' }}>{{ g }}</option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="{{ r.grupamento }}" selected>{{ r.grupamento }}</option>
+                  {% endif %}
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Finalidade</label>
+                <select name="finalidade"
+                        required
+                        class="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25">
+                  {% if finalidades is defined %}
+                    {% for f in finalidades %}
+                      <option value="{{ f }}" {{ 'selected' if r.finalidade == f else '' }}>{{ f }}</option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="{{ r.finalidade }}" selected>{{ r.finalidade }}</option>
+                  {% endif %}
+                </select>
+              </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div class="relative" data-dtp-wrapper>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Início</label>
+                <input type="hidden" name="data_inicio" data-dtp-iso value="{{ r.data_inicio }}">
+                <div class="relative">
+                  <input type="text"
+                         data-dtp-display
+                         readonly
+                         required
+                         class="w-full cursor-pointer rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 pl-3 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25">
+                  <button type="button"
+                          data-dtp-trigger
+                          aria-label="Alterar data de início"
+                          class="absolute inset-y-1 right-1 px-2 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600">
+                    <svg data-dtp-icon-cal class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
+                    </svg>
+                    <svg data-dtp-icon-check class="w-4 h-4 hidden text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="relative" data-dtp-wrapper>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Término</label>
+                <input type="hidden" name="data_fim" data-dtp-iso value="{{ r.data_fim }}">
+                <div class="relative">
+                  <input type="text"
+                         data-dtp-display
+                         readonly
+                         required
+                         class="w-full cursor-pointer rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 pl-3 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25">
+                  <button type="button"
+                          data-dtp-trigger
+                          aria-label="Alterar data de término"
+                          class="absolute inset-y-1 right-1 px-2 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600">
+                    <svg data-dtp-icon-cal class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
+                    </svg>
+                    <svg data-dtp-icon-check class="w-4 h-4 hidden text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+              <button type="button"
+                      onclick="document.getElementById('edit-box-{{ r.id }}').classList.add('hidden')"
+                      class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors">
+                Cancelar edição
+              </button>
+              <button type="submit"
+                      data-loading-text="Salvando..."
+                      class="btn-primary-gradient inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white shadow-sm">
+                <svg data-btn-spinner class="hidden w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                </svg>
+                <span data-btn-label>Salvar alterações</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <!-- Estado Vazio -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 p-8 text-center">
+        <img src="{{ url_for('static', filename='img/empty-calendar.svg') }}"
+             alt="Nenhuma reserva pendente ou em uso"
+             loading="lazy"
+             class="w-32 h-auto mx-auto mb-3 select-none">
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Nenhuma reserva pendente ou em uso</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          Quando houver agendamentos ativos, eles aparecerão aqui para controle de retirada e devolução.
+        </p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Paginação: Controle de Entregas Ativas -->
+  {% if count_ativas > 0 %}
+    <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-800 rounded-2xl px-4 py-3 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 text-xs text-slate-600 dark:text-slate-300">
+      <span>
+        Mostrando <strong>{{ (p_ativas - 1) * (per_page_ativas | default(10)) + 1 }}</strong>–<strong>{{ (p_ativas - 1) * (per_page_ativas | default(10)) + (ativas | length) }}</strong> de <strong>{{ count_ativas }}</strong> {{ 'entrega ativa' if count_ativas == 1 else 'entregas ativas' }}
+      </span>
+
+      <div class="flex items-center gap-1.5">
+        {% if p_ativas > 1 %}
+          <a href="{{ url_for('painel_admin', page_ativas=p_ativas - 1, page_hist=p_hist) }}#secao-ativas"
+             class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors">
+            ← Anterior
+          </a>
+        {% else %}
+          <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-slate-100/60 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed">
+            ← Anterior
+          </span>
+        {% endif %}
+
+        {% for num in range(1, tp_ativas + 1) %}
+          <a href="{{ url_for('painel_admin', page_ativas=num, page_hist=p_hist) }}#secao-ativas"
+             class="w-8 h-8 rounded-xl font-bold flex items-center justify-center transition-colors {{ 'bg-indigo-600 text-white shadow-sm' if num == p_ativas else 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-600' }}">
+            {{ num }}
+          </a>
+        {% endfor %}
+
+        {% if p_ativas < tp_ativas %}
+          <a href="{{ url_for('painel_admin', page_ativas=p_ativas + 1, page_hist=p_hist) }}#secao-ativas"
+             class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors">
+            Próxima →
+          </a>
+        {% else %}
+          <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-slate-100/60 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed">
+            Próxima →
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</section>
+
+<!-- Seção: Histórico Recente -->
+<section id="secao-historico" class="animate-fade-up delay-3">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <span>Histórico recente</span>
+        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+          {{ count_hist }}
+        </span>
+      </h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Registros concluídos ou cancelados</p>
+    </div>
+    {% if tp_hist > 1 %}
+      <span class="text-xs text-slate-500 dark:text-slate-400">
+        Página {{ p_hist }} de {{ tp_hist }}
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700/80 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left border-collapse">
+        <thead class="bg-slate-50/95 dark:bg-slate-900/95 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-700">
+          <tr>
+            <th scope="col" class="py-3.5 px-4">Solicitante / Grupamento</th>
+            <th scope="col" class="py-3.5 px-4">Período</th>
+            <th scope="col" class="py-3.5 px-4">Status</th>
+            <th scope="col" class="py-3.5 px-4">Checklist e Observação</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200/70 dark:divide-slate-700/70">
+          {% for r in historico %}
+            <tr class="even:bg-slate-50/50 dark:even:bg-slate-800/40 hover:bg-indigo-50/40 dark:hover:bg-slate-700/40 transition-colors">
+              <td class="py-3.5 px-4">
+                <div class="font-semibold text-slate-900 dark:text-white">{{ r.solicitante }}</div>
+                <div class="text-xs text-slate-500 dark:text-slate-400">{{ r.grupamento }} · {{ r.finalidade }}</div>
+              </td>
+              <td class="py-3.5 px-4 whitespace-nowrap text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                <div>{{ format_dt_br(r.data_inicio) }}</div>
+                <div class="text-xs text-slate-400">até {{ format_dt_br(r.data_fim) }}</div>
+              </td>
+              <td class="py-3.5 px-4 whitespace-nowrap">
+                {{ status_badge(r.status) }}
+              </td>
+              <td class="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-300">
+                {{ r.observacao or '—' }}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="4" class="py-8 px-4 text-center text-slate-500 dark:text-slate-400 text-sm">
+                Sem registros no histórico até o momento.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginação: Histórico Recente -->
+    {% if count_hist > 0 %}
+      <div class="border-t border-slate-200/80 dark:border-slate-700 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/40 text-xs text-slate-600 dark:text-slate-300">
+        <span>
+          Mostrando <strong>{{ (p_hist - 1) * (per_page_hist | default(10)) + 1 }}</strong>–<strong>{{ (p_hist - 1) * (per_page_hist | default(10)) + (historico | length) }}</strong> de <strong>{{ count_hist }}</strong> {{ 'registro' if count_hist == 1 else 'registros' }}
+        </span>
+
+        <div class="flex items-center gap-1.5">
+          {% if p_hist > 1 %}
+            <a href="{{ url_for('painel_admin', page_ativas=p_ativas, page_hist=p_hist - 1) }}#secao-historico"
+               class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors">
+              ← Anterior
+            </a>
+          {% else %}
+            <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-slate-100/60 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 cursor-not-allowed">
+              ← Anterior
+            </span>
+          {% endif %}
+
+          {% for num in range(1, tp_hist + 1) %}
+            <a href="{{ url_for('painel_admin', page_ativas=p_ativas, page_hist=num) }}#secao-historico"
+               class="w-8 h-8 rounded-xl font-bold flex items-center justify-center transition-colors {{ 'bg-indigo-600 text-white shadow-sm' if num == p_hist else 'bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-700' }}">
+              {{ num }}
+            </a>
+          {% endfor %}
+
+          {% if p_hist < tp_hist %}
+            <a href="{{ url_for('painel_admin', page_ativas=p_ativas, page_hist=p_hist + 1) }}#secao-historico"
+               class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors">
+              Próxima →
+            </a>
+          {% else %}
+            <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold bg-slate-100/60 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 cursor-not-allowed">
+              Próxima →
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Modal Moderno de Confirmação de Cancelamento com Justificativa -->
+<div id="cancel-modal"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="cancel-modal-title"
+     class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+  <div class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 p-6 animate-fade-up">
+    <!-- Cabeçalho do Modal -->
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+          </svg>
+        </div>
+        <div>
+          <h3 id="cancel-modal-title" class="text-base font-bold text-slate-900 dark:text-white">
+            Cancelar agendamento
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Esta ação liberará o horário na agenda
+          </p>
+        </div>
+      </div>
+
+      <button type="button"
+              onclick="closeCancelModal()"
+              aria-label="Fechar modal"
+              class="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Resumo da Reserva Selecionada -->
+    <div class="rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700 px-3.5 py-2.5 mb-4 text-xs">
+      <div class="font-bold text-slate-800 dark:text-slate-100" id="cancel-modal-nome">—</div>
+      <div class="text-slate-500 dark:text-slate-400 mt-0.5" id="cancel-modal-periodo">—</div>
+    </div>
+
+    <!-- Formulário de Cancelamento -->
+    <form id="cancel-modal-form" method="post" action="" data-loading-form class="space-y-4">
+      <div>
+        <label for="input-justificativa" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+          Justificativa do cancelamento <span class="text-rose-500">*</span>
+        </label>
+        <textarea id="input-justificativa"
+                  name="justificativa"
+                  rows="3"
+                  required
+                  placeholder="Informe o motivo do cancelamento..."
+                  class="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/25 transition-all"></textarea>
+
+        <!-- Sugestões Rápidas -->
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          <button type="button"
+                  onclick="fillCancelReason('Solicitação do próprio usuário')"
+                  class="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">
+            Solicitação do usuário
+          </button>
+          <button type="button"
+                  onclick="fillCancelReason('Reunião adiada / reagendada')"
+                  class="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">
+            Reunião adiada
+          </button>
+          <button type="button"
+                  onclick="fillCancelReason('Não compareceu no horário')"
+                  class="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">
+            Não compareceu
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/70">
+        <button type="button"
+                onclick="closeCancelModal()"
+                class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          Voltar
+        </button>
+        <button type="submit"
+                data-loading-text="Cancelando..."
+                class="btn-press inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-rose-600/20 transition-all">
+          <svg data-btn-spinner class="hidden w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          <span data-btn-label>Confirmar cancelamento</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openCancelModal(btn) {
+    var modal = document.getElementById('cancel-modal');
+    var form = document.getElementById('cancel-modal-form');
+    var nomeEl = document.getElementById('cancel-modal-nome');
+    var periodoEl = document.getElementById('cancel-modal-periodo');
+    var inputJust = document.getElementById('input-justificativa');
+
+    form.action = btn.getAttribute('data-cancel-url');
+    nomeEl.textContent = 'Solicitante: ' + (btn.getAttribute('data-cancel-nome') || '');
+    periodoEl.textContent = 'Período: ' + (btn.getAttribute('data-cancel-periodo') || '');
+    inputJust.value = '';
+
+    modal.classList.remove('hidden');
+    setTimeout(function() {
+      inputJust.focus();
+    }, 50);
+  }
+
+  function closeCancelModal() {
+    var modal = document.getElementById('cancel-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function fillCancelReason(text) {
+    var inputJust = document.getElementById('input-justificativa');
+    if (inputJust) {
+      inputJust.value = text;
+      inputJust.focus();
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeCancelModal();
+  });
+
+  document.getElementById('cancel-modal').addEventListener('mousedown', function(e) {
+    if (e.target === this) closeCancelModal();
+  });
+</script>
+{% endblock %}

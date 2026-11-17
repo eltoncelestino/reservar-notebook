@@ -1,0 +1,42 @@
+{# Macro reutilizável para Badges de Status #}
+{% macro status_badge(status) %}
+  {% if status == 'Reservado' %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-400/30">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+      Reservado
+    </span>
+  {% elif status == 'Em uso' %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/25 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-400/30">
+      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+      Em uso
+    </span>
+  {% elif status == 'Devolvido' %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-400/30">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+      Devolvido
+    </span>
+  {% elif status == 'Cancelado' %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-400/30">
+      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+      Cancelado
+    </span>
+  {% else %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+      {{ status }}
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{# Macro para formatar data/hora ISO (YYYY-MM-DDTHH:MM) no padrão pt-BR (DD/MM/AAAA HH:MM) #}
+{% macro format_dt_br(val) -%}
+  {%- if val -%}
+    {%- set parts = val.replace(' ', 'T').split('T') -%}
+    {%- set d = parts[0].split('-') -%}
+    {%- set t = parts[1][:5] if parts|length > 1 else '' -%}
+    {%- if d|length == 3 -%}
+      {{ d[2] }}/{{ d[1] }}/{{ d[0] }}{{ ' ' ~ t if t else '' }}
+    {%- else -%}
+      {{ val }}
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}

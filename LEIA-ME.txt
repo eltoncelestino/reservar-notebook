@@ -1,0 +1,13 @@
+SISTEMA DE RESERVA DE NOTEBOOK (Flask + SQLite)
+
+1. Instale o Python 3.10+ (marque "Add to PATH").
+2. No terminal, dentro da pasta: pip install -r requirements.txt
+3. Execute: python app.py   (ou duplo clique em iniciar.bat)
+4. Solicitantes: http://IP-DA-MAQUINA:5000
+   Painel do Alan: http://localhost:5000/alan
+5. Atalho no Windows: botao direito na area de trabalho > Novo > Atalho,
+   apontar para iniciar.bat (ou para http://localhost:5000/alan).
+
+Obs.: o banco (database.db) e criado automaticamente na primeira execucao.
+Edite GRUPAMENTOS e FINALIDADES no inicio do app.py.
+Libere a porta 5000 no firewall do Windows para outros acessarem.
