@@ -1,8 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from functools import wraps
+import hmac
 import os
+import secrets
 import shutil
 import sqlite3
+import time
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +19,11 @@ if os.path.exists(ENV_FILE):
                 os.environ.setdefault(k.strip(), v.strip())
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "altere-esta-chave-em-producao")
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
 
 DB_DIR = os.environ.get("DB_DIR", BASE_DIR)
 DB_NAME = os.environ.get("DB_NAME", "db_reservar_notebook.db")
@@ -202,17 +209,36 @@ def admin_required(f):
     return decorated
 
 
+_LOGIN_TENTATIVAS = {}
+_MAX_TENTATIVAS_LOGIN = 5
+_BLOQUEIO_SEGUNDOS = 300
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login_admin():
     if session.get("admin_logado"):
         return redirect(url_for("painel_admin"))
     if request.method == "POST":
+        ip = request.remote_addr or "desconhecido"
+        agora = time.time()
+        tentativas = [t for t in _LOGIN_TENTATIVAS.get(ip, []) if agora - t < _BLOQUEIO_SEGUNDOS]
+        if len(tentativas) >= _MAX_TENTATIVAS_LOGIN:
+            flash("Muitas tentativas de login. Aguarde 5 minutos e tente novamente.", "erro")
+            return render_template("login.html"), 429
+
         usuario = request.form.get("usuario", "").strip()
         senha = request.form.get("senha", "")
-        if usuario == ADMIN_USUARIO and senha == ADMIN_SENHA:
+        usuario_ok = hmac.compare_digest(usuario.encode("utf-8"), ADMIN_USUARIO.encode("utf-8"))
+        senha_ok = hmac.compare_digest(senha.encode("utf-8"), ADMIN_SENHA.encode("utf-8"))
+        if usuario_ok and senha_ok:
+            _LOGIN_TENTATIVAS.pop(ip, None)
+            session.clear()
             session["admin_logado"] = True
             flash("Login realizado com sucesso.", "ok")
             return redirect(url_for("painel_admin"))
+
+        tentativas.append(agora)
+        _LOGIN_TENTATIVAS[ip] = tentativas
         flash("Usuário ou senha incorretos.", "erro")
     return render_template("login.html")
 
